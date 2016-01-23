@@ -34,6 +34,7 @@ func createUniqueMapping(longUrl string) string {
 	return id.String()[:7]
 }
 func lookItUp(shortUrl string) string {
+	//Later on one can have any number of schemes for generating this shortened url
 	if longUrl := lookup[shortUrl]; longUrl != "" {
 		return longUrl
 	} else {
