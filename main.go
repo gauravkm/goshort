@@ -25,6 +25,9 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 
 func shortenUrl(longUrl string) string {
 	shortUrl := createUniqueMapping(longUrl)
+	for lookup[shortUrl] != "" {
+		shortUrl = createUniqueMapping(longUrl)
+	}
 	lookup[shortUrl] = longUrl
 	return shortUrl
 }
