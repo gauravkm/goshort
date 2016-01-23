@@ -3,6 +3,7 @@ package main
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
+	"github.com/mediocregopher/radix.v2/redis"
 	"net/http"
 )
 
@@ -25,13 +26,20 @@ func lookupHandler(w http.ResponseWriter, r *http.Request) {
 
 func shortenUrl(longUrl string) string {
 	shortUrl := createUniqueMapping(longUrl)
-	for lookup[shortUrl] != "" {
+	for lookupIsNonEmpty(shortUrl) {
 		shortUrl = createUniqueMapping(longUrl)
 	}
-	lookup[shortUrl] = longUrl
+	addMappingToStore(shortUrl, longUrl)
 	return shortUrl
 }
 
+func addMappingToStore(shortUrl, longUrl) {
+	lookup[shortUrl] = longUrl
+}
+
+func lookupIsNonEmpty(shortUrl string) string {
+	return lookup[shortUrl] != ""
+}
 func createUniqueMapping(longUrl string) string {
 	id := uuid.NewUUID()
 	return id.String()[:7]
