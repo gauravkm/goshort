@@ -8,6 +8,9 @@ import (
 )
 
 var lookup map[string]string = make(map[string]string)
+var client *redis.Client
+
+const store = "redis"
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	longUrl := r.URL.Path[9:]
@@ -33,27 +36,61 @@ func shortenUrl(longUrl string) string {
 	return shortUrl
 }
 
-func addMappingToStore(shortUrl, longUrl) {
-	lookup[shortUrl] = longUrl
+func addMappingToStore(shortUrl, longUrl string) {
+	switch store {
+	case "redis":
+		err := client.Cmd("Set", shortUrl, longUrl).Err
+		if err != nil {
+			fmt.Printf("error while writing to redis: " + err.Error())
+		}
+	default:
+		lookup[shortUrl] = longUrl
+	}
 }
 
-func lookupIsNonEmpty(shortUrl string) string {
-	return lookup[shortUrl] != ""
+func lookupIsNonEmpty(shortUrl string) bool {
+	switch store {
+	case "redis":
+		longUrl, _ := client.Cmd("GET", shortUrl).Str()
+		return longUrl != ""
+	default:
+		return lookup[shortUrl] != ""
+	}
 }
+
 func createUniqueMapping(longUrl string) string {
 	id := uuid.NewUUID()
 	return id.String()[:7]
 }
+
 func lookItUp(shortUrl string) string {
 	//Later on one can have any number of schemes for generating this shortened url
-	if longUrl := lookup[shortUrl]; longUrl != "" {
+	switch store {
+	case "redis":
+		longUrl, err := client.Cmd("GET", shortUrl).Str()
+		if err != nil {
+			return "unable to lookup: " + shortUrl
+		}
 		return longUrl
-	} else {
-		return "unable to lookup: " + shortUrl
+	default:
+		if longUrl := lookup[shortUrl]; longUrl != "" {
+			return longUrl
+		} else {
+			return "unable to lookup: " + shortUrl
+		}
+	}
+}
+func setupRedis() {
+
+	c, err := redis.Dial("tcp", "localhost:6379")
+	client = c
+	if err != nil {
+		//handle error
 	}
 }
 
 func main() {
+	setupRedis()
 	http.HandleFunc("/shorten/", handler)
 	http.HandleFunc("/lookup/", lookupHandler)
 	http.ListenAndServe(":8800", nil)
